@@ -1,0 +1,4 @@
+*.pyc
+train/*
+*.vocab
+*.cPickle
