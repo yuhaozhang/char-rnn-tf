@@ -65,13 +65,13 @@ class DataLoader(object):
         for i in range(self.num_batch):
             self.x_list.append(data_array[:, i*num_steps:(i+1)*num_steps])
             self.y_list.append(data_array[:, i*num_steps+1:(i+1)*num_steps+1])
-        self.cur_pos = 0
+        self.pointer = 0
 
     def next_batch(self):
-        if self.cur_pos >= self.num_batch:
-            self.cur_pos = 0
-        self.cur_pos += 1
-        return self.x_list[self.cur_pos-1], self.y_list[self.cur_pos-1]
+        if self.pointer >= self.num_batch:
+            self.pointer = 0
+        self.pointer += 1
+        return self.x_list[self.pointer-1], self.y_list[self.pointer-1]
 
 
 def _dump_to_file(obj, filename):
@@ -88,10 +88,16 @@ def _load_from_dump(filename):
 def test():
     reader = TextReader('./data/tinyshakespeare/input.txt')
     reader.prepare_data()
+    print len(reader.char2id)
     loader = DataLoader('./data/tinyshakespeare/train.cPickle', 128, 30)
     print loader.total_chars
     print loader.num_batch
-    print loader.next_batch()
+    for i in range(loader.num_batch*2):
+        x, y = loader.next_batch()
+        if i % 20 == 0:
+            print loader.cur_pos
+            print x[:2, :20]
+            print y[:2, :20]
 
 if __name__ == '__main__':
     test()
