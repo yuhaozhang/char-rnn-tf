@@ -27,7 +27,6 @@ class TextReader(object):
         with open(self.data_path, 'r') as infile:
             self.id_data = [self.char2id[c] for c in infile.read()]
         self.total_chars = len(self.id_data)
-        # _dump_to_file(self.id_data, os.path.join(self.data_dir, 'char_data.cPickle'))
 
     def split_data(self, test_fraction):
         num_train = int(math.floor(self.total_chars * (1-test_fraction)))
@@ -68,11 +67,12 @@ class DataLoader(object):
         self.pointer = 0
 
     def next_batch(self):
-        if self.pointer >= self.num_batch:
-            self.pointer = 0
+        if self.pointer >= self.num_batch: self.reset_pointer()
         self.pointer += 1
         return self.x_list[self.pointer-1], self.y_list[self.pointer-1]
 
+    def reset_pointer(self):
+        self.pointer = 0
 
 def _dump_to_file(obj, filename):
     with open(filename, 'w') as outfile:

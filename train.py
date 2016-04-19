@@ -10,8 +10,10 @@ import input
 tf.app.flags.DEFINE_string('data_dir', './data/tinyshakespeare/', 'Data directory')
 tf.app.flags.DEFINE_string('data_file', 'input.txt', 'Data directory')
 tf.app.flags.DEFINE_string('train_dir', './train/', 'Dir to save checkpoint file and summary')
-tf.app.flags.DEFINE_integer('max_train_steps', 5500, 'Max number of steps to train')
-tf.app.flags.DEFINE_integer('init_scale', 0.01, 'Initial scale of all parameters')
+tf.app.flags.DEFINE_integer('num_epochs', 30, 'Number of epochs to train')
+tf.app.flags.DEFINE_float('init_scale', 0.01, 'Initial scale of all parameters')
+tf.app.flags.DEFINE_float('dropout', 0, 'Dropout rate for LSTM outputs, 0 is no dropout')
+tf.app.flags.DEFINE_float('init_lr', 5e-3, 'Initial learning rate')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -19,11 +21,8 @@ LOG_STEP_INTERVAL = 10
 SUMMARY_STEP_INTERVAL = 10
 SAVE_STEP_INTERVAL = 1000
 
-INITIAL_LR = 0.01
-LR_DECAY_RATE = 0.9
-DECAY_STEPS = 100
-
-TRAIN_DROPOUT_RATE = 1.0
+LR_DECAY_RATE = 0.95
+DECAY_EPOCH = 2
 
 def train():
     print "Building training graph ..."
@@ -56,34 +55,44 @@ def train():
         reader.prepare_data()
         loader = input.DataLoader(os.path.join(FLAGS.data_dir, 'train.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
 
-        for step in xrange(FLAGS.max_train_steps):
-            current_lr = INITIAL_LR * (LR_DECAY_RATE ** (step // DECAY_STEPS))
-            start_time = time.time()
-            x_batch, y_batch = loader.next_batch()
-            if step == 0:
-                state = np.zeros(initial_state.get_shape())
-            dict_to_feed = {inputs: x_batch, targets: y_batch, keep_prob: TRAIN_DROPOUT_RATE, lr: current_lr, initial_state: state}
-            state, loss_value, _ = sess.run([final_state, loss, train_op], feed_dict=dict_to_feed)
-            duration = time.time() - start_time
+        total_steps = FLAGS.num_epochs * loader.num_batch
+        save_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+        global_step = 0
 
-            assert not np.isnan(loss_value), 'Model loss is NaN.'
+        # training
+        for epoch in xrange(FLAGS.num_epochs):
+            current_lr = FLAGS.init_lr * (LR_DECAY_RATE ** (epoch // DECAY_EPOCH))
+            state = np.zeros(initial_state.get_shape())
+            training_loss = 0.
+            for step in xrange(loader.num_batch):
+                global_step += 1
+                start_time = time.time()
+                x_batch, y_batch = loader.next_batch()
+                feed = {inputs: x_batch, targets: y_batch, keep_prob: (1-FLAGS.dropout), lr: current_lr, initial_state: state}
+                state, loss_value, _ = sess.run([final_state, loss, train_op], feed_dict=feed)
+                duration = time.time() - start_time
+                training_loss += loss_value
 
-            if step % LOG_STEP_INTERVAL == 0:
-                seqs_per_sec = FLAGS.batch_size / duration
-                sec_per_batch = float(duration)
+                if global_step % LOG_STEP_INTERVAL == 0:
+                    format_str = ('%s: step %d/%d (epoch %d/%d), loss = %.2f (%.3f sec/batch), lr: %.5f')
+                    print (format_str % (datetime.now(), global_step, total_steps, epoch+1, FLAGS.num_epochs, loss_value,
+                        duration, current_lr))
 
-                format_str = ('%s: step %d/%d, loss = %.2f (%.1f seqs/sec; %.3f sec/batch), lr: %.5f')
-                print (format_str % (datetime.now(), step, FLAGS.max_train_steps, loss_value, seqs_per_sec, 
-                    sec_per_batch, current_lr))
+                if global_step % SUMMARY_STEP_INTERVAL == 0:
+                    summary_str = sess.run(summary_op)
+                    summary_writer.add_summary(summary_str, global_step)
 
-            if step % SUMMARY_STEP_INTERVAL == 0:
-                summary_str = sess.run(summary_op)
-                summary_writer.add_summary(summary_str, global_step=step)
+                if global_step % SAVE_STEP_INTERVAL == 0:
+                    saver.save(sess, save_path, global_step)
+            loader.reset_pointer()
 
-            if step % SAVE_STEP_INTERVAL == 0:
-                save_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
-                saver.save(sess, save_path, global_step=step)
+            # epoch summary
+            training_loss /= loader.num_batch
+            summary_writer.add_summary(_summary_for_scalar('training_loss', training_loss), global_step)
 
+
+def _summary_for_scalar(name, value):
+    return tf.Summary(value=[tf.Summary.Value(tag=name, simple_value=value)])
 
 def main(_):
     if tf.gfile.Exists(FLAGS.train_dir):
