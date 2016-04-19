@@ -70,8 +70,6 @@ def train():
                 test_loss += loss_value
             return test_loss / loader.num_batch
 
-        train_loader.num_batch = 3
-
         # training
         for epoch in xrange(FLAGS.num_epochs):
             current_lr = FLAGS.init_lr * (LR_DECAY_RATE ** (max(epoch - DECAY_EPOCH + 1, 0)))
