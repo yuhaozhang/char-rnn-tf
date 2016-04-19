@@ -22,7 +22,7 @@ SUMMARY_STEP_INTERVAL = 10
 SAVE_STEP_INTERVAL = 1000
 
 LR_DECAY_RATE = 0.95
-DECAY_EPOCH = 2
+DECAY_EPOCH = 3 # decay after this epoch
 
 def train():
     print "Building training graph ..."
@@ -50,24 +50,37 @@ def train():
         summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, graph=sess.graph)
 
         # load data
-        print "Loading training data ..."
+        print "Loading data ..."
         reader = input.TextReader(os.path.join(FLAGS.data_dir, FLAGS.data_file))
         reader.prepare_data()
-        loader = input.DataLoader(os.path.join(FLAGS.data_dir, 'train.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
+        train_loader = input.DataLoader(os.path.join(FLAGS.data_dir, 'train.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
+        test_loader = input.DataLoader(os.path.join(FLAGS.data_dir, 'test.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
 
-        total_steps = FLAGS.num_epochs * loader.num_batch
+        total_steps = FLAGS.num_epochs * train_loader.num_batch
         save_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+        zero_state = np.zeros(initial_state.get_shape())
         global_step = 0
+
+        def eval(sess, loader, state):
+            test_loss = 0.
+            for _ in xrange(loader.num_batch):
+                x_batch, y_batch = loader.next_batch()
+                feed = {inputs: x_batch, targets: y_batch, keep_prob: 1., initial_state: state}
+                state, loss_value = sess.run([final_state, loss], feed_dict=feed)
+                test_loss += loss_value
+            return test_loss / loader.num_batch
+
+        train_loader.num_batch = 3
 
         # training
         for epoch in xrange(FLAGS.num_epochs):
-            current_lr = FLAGS.init_lr * (LR_DECAY_RATE ** (epoch // DECAY_EPOCH))
-            state = np.zeros(initial_state.get_shape())
+            current_lr = FLAGS.init_lr * (LR_DECAY_RATE ** (max(epoch - DECAY_EPOCH + 1, 0)))
+            state = zero_state
             training_loss = 0.
-            for step in xrange(loader.num_batch):
+            for _ in xrange(train_loader.num_batch):
                 global_step += 1
                 start_time = time.time()
-                x_batch, y_batch = loader.next_batch()
+                x_batch, y_batch = train_loader.next_batch()
                 feed = {inputs: x_batch, targets: y_batch, keep_prob: (1-FLAGS.dropout), lr: current_lr, initial_state: state}
                 state, loss_value, _ = sess.run([final_state, loss, train_op], feed_dict=feed)
                 duration = time.time() - start_time
@@ -75,7 +88,7 @@ def train():
 
                 if global_step % LOG_STEP_INTERVAL == 0:
                     format_str = ('%s: step %d/%d (epoch %d/%d), loss = %.2f (%.3f sec/batch), lr: %.5f')
-                    print (format_str % (datetime.now(), global_step, total_steps, epoch+1, FLAGS.num_epochs, loss_value,
+                    print(format_str % (datetime.now(), global_step, total_steps, epoch+1, FLAGS.num_epochs, loss_value,
                         duration, current_lr))
 
                 if global_step % SUMMARY_STEP_INTERVAL == 0:
@@ -84,12 +97,15 @@ def train():
 
                 if global_step % SAVE_STEP_INTERVAL == 0:
                     saver.save(sess, save_path, global_step)
-            loader.reset_pointer()
+            train_loader.reset_pointer()
 
             # epoch summary
-            training_loss /= loader.num_batch
+            training_loss /= train_loader.num_batch
             summary_writer.add_summary(_summary_for_scalar('training_loss', training_loss), global_step)
-
+            test_loss = eval(sess, test_loader, zero_state)
+            test_loader.reset_pointer()
+            summary_writer.add_summary(_summary_for_scalar('test_loss', test_loss), global_step)
+            print("Epoch %d: training_loss = %.2f, test_loss = %.2f" % (epoch, training_loss, test_loss))
 
 def _summary_for_scalar(name, value):
     return tf.Summary(value=[tf.Summary.Value(tag=name, simple_value=value)])
