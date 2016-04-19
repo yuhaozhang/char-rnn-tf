@@ -8,7 +8,7 @@ import model
 import text_input
 
 tf.app.flags.DEFINE_string('data_dir', './data/tinyshakespeare/', 'Data directory')
-tf.app.flags.DEFINE_string('data_file', 'input.txt', 'Data directory')
+tf.app.flags.DEFINE_string('data_file', 'input.txt', 'Data filename')
 tf.app.flags.DEFINE_string('train_dir', './train/', 'Dir to save checkpoint file and summary')
 tf.app.flags.DEFINE_integer('num_epochs', 30, 'Number of epochs to train')
 tf.app.flags.DEFINE_float('init_scale', 0.01, 'Initial scale of all parameters')
@@ -45,7 +45,7 @@ def train():
 
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
-        summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, graph=sess.graph)
+        summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, graph_def=sess.graph_def)
 
         # load data
         print "Loading data ..."
