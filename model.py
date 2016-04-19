@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 tf.app.flags.DEFINE_string('model', 'lstm', 'RNN cell type, selected from "rnn", "gru" and "lstm"')
