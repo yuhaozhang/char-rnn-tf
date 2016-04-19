@@ -40,18 +40,25 @@ def sample():
         last_id = char2id[FLAGS.start_with[-1]]
         for _ in xrange(FLAGS.max_length - len(FLAGS.start_with)):
             x = np.array([[last_id]])
-            probs, state = sess.run([logits, final_state], feed_dict={inputs:x, keep_prob:1., initial_state:state})
-            last_id = _sample_from_probs(probs)
+            logits_value, state = sess.run([logits, final_state], feed_dict={inputs:x, keep_prob:1., initial_state:state})
+            last_id = _sample_from_logits(logits_value)
             c = id2char[last_id]
             output_str += c
         print output_str
 
     return
 
-def _sample_from_probs(probs):
+def _sample_from_probs(logits):
+    exp = np.exp(logits - np.max(logits))
+    probs = exp / np.sum(exp)
     cum = np.cumsum(probs)
     r = np.random.random()
     return np.argmax(cum>=r)
 
-if __name__ == '__main__':
+def main(_):
+    if not tf.gfile.Exists(FLAGS.train_dir):
+        raise Exception('Provided training directory does not exist.')
     sample()
+
+if __name__ == '__main__':
+    tf.app.run()
