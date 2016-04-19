@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 import model
-import input
+import text_input
 
 tf.app.flags.DEFINE_string('data_dir', './data/tinyshakespeare/', 'Data directory')
 tf.app.flags.DEFINE_string('data_file', 'input.txt', 'Data directory')
@@ -51,10 +51,10 @@ def train():
 
         # load data
         print "Loading data ..."
-        reader = input.TextReader(os.path.join(FLAGS.data_dir, FLAGS.data_file))
+        reader = text_input.TextReader(os.path.join(FLAGS.data_dir, FLAGS.data_file))
         reader.prepare_data()
-        train_loader = input.DataLoader(os.path.join(FLAGS.data_dir, 'train.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
-        test_loader = input.DataLoader(os.path.join(FLAGS.data_dir, 'test.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
+        train_loader = text_input.DataLoader(os.path.join(FLAGS.data_dir, 'train.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
+        test_loader = text_input.DataLoader(os.path.join(FLAGS.data_dir, 'test.cPickle'), FLAGS.batch_size, FLAGS.num_steps)
 
         total_steps = FLAGS.num_epochs * train_loader.num_batch
         save_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
@@ -103,7 +103,7 @@ def train():
             test_loss = eval(sess, test_loader, zero_state)
             test_loader.reset_pointer()
             summary_writer.add_summary(_summary_for_scalar('test_loss', test_loss), global_step)
-            print("Epoch %d: training_loss = %.2f, test_loss = %.2f" % (epoch, training_loss, test_loss))
+            print("Epoch %d: training_loss = %.2f, test_loss = %.2f" % (epoch+1, training_loss, test_loss))
 
 def _summary_for_scalar(name, value):
     return tf.Summary(value=[tf.Summary.Value(tag=name, simple_value=value)])

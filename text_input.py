@@ -20,7 +20,7 @@ class TextReader(object):
         chars, _ = zip(*counter.most_common())
         self.vocab_size = len(chars)
         self.char2id = dict(zip(chars, range(self.vocab_size)))
-        _dump_to_file(self.char2id, os.path.join(self.data_dir, 'vocab.cPickle'))
+        dump_to_file(self.char2id, os.path.join(self.data_dir, 'vocab.cPickle'))
         return self.char2id
 
     def convert_text_to_ids(self):
@@ -32,8 +32,8 @@ class TextReader(object):
         num_train = int(math.floor(self.total_chars * (1-test_fraction)))
         self.train_data = self.id_data[:num_train]
         self.test_data = self.id_data[num_train:]
-        _dump_to_file(self.train_data, os.path.join(self.data_dir, 'train.cPickle'))
-        _dump_to_file(self.test_data, os.path.join(self.data_dir, 'test.cPickle'))
+        dump_to_file(self.train_data, os.path.join(self.data_dir, 'train.cPickle'))
+        dump_to_file(self.test_data, os.path.join(self.data_dir, 'test.cPickle'))
 
     def prepare_data(self, test_fraction=0.05):
         self.build_vocab()
@@ -48,7 +48,7 @@ class DataLoader(object):
         we need to further chunk it into num_steps batches. Thus, each batch is of size
         [batch_size, num_steps]
         """
-        self.raw_data = _load_from_dump(data_path)
+        self.raw_data = load_from_dump(data_path)
         self.batch_size = batch_size
         self.num_steps = num_steps
         self.total_chars = len(self.raw_data)
@@ -74,12 +74,12 @@ class DataLoader(object):
     def reset_pointer(self):
         self.pointer = 0
 
-def _dump_to_file(obj, filename):
+def dump_to_file(obj, filename):
     with open(filename, 'w') as outfile:
         cPickle.dump(obj, outfile)
     return
 
-def _load_from_dump(filename):
+def load_from_dump(filename):
     with open(filename, 'r') as infile:
         obj = cPickle.load(infile)
     return obj

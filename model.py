@@ -39,8 +39,7 @@ def predict(input_data, state, keep_prob):
     outputs = tf.reshape(tf.concat(1, outputs), shape=[-1, dim])
     softmax_w = tf.get_variable('softmax_w', shape=[dim, FLAGS.vocab_size])
     softmax_b = tf.get_variable('softmax_b', shape=[FLAGS.vocab_size])
-    logits = tf.nn.bias_add(tf.matmul(outputs, softmax_w), softmax_b)
-
+    logits = tf.nn.softmax(tf.nn.bias_add(tf.matmul(outputs, softmax_w), softmax_b))
     return (logits, new_state)
 
 def loss(logits, targets):
