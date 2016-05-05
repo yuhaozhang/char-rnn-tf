@@ -2,3 +2,5 @@
 train/*
 *.vocab
 *.cPickle
+*.sh
+data/*/*.py

@@ -86,18 +86,12 @@ def load_from_dump(filename):
 
 
 def test():
-    reader = TextReader('./data/tinyshakespeare/input.txt')
+    reader = TextReader('./data/wikipedia/enwiki-articles-sample.xml')
     reader.prepare_data()
-    print len(reader.char2id)
-    loader = DataLoader('./data/tinyshakespeare/train.cPickle', 128, 30)
-    print loader.total_chars
-    print loader.num_batch
-    for i in range(loader.num_batch*2):
-        x, y = loader.next_batch()
-        if i % 20 == 0:
-            print loader.cur_pos
-            print x[:2, :20]
-            print y[:2, :20]
+    print "vocabulary size: %d" % len(reader.char2id)
+    loader = DataLoader('./data/wikipedia/train.cPickle', 128, 30)
+    print "total character count: %d" % loader.total_chars
+    print "total batches: %d" % loader.num_batch
 
 if __name__ == '__main__':
     test()
